@@ -1,7 +1,7 @@
 #!/bin/bash
 
 local=.
-remote="root@192.168.7.2:~/banjer"
+remote="root@192.168.7.2:~/Trill_SC"
 dryrun=1
 
 lineargs1="-auz"
