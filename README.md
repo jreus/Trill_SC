@@ -15,7 +15,7 @@ your.pc> ./update push -n
 
 *You can alternatively use scp*
 ```
-your.pc> scp -r root@192.168.7.2:
+your.pc> scp -r Trill_SC root@192.168.7.2:
 ```
 
 2. SSH into your Bela (make sure it's connected to your PC)
