@@ -1,7 +1,10 @@
 #include <libraries/Trill/Trill.h>
 
-#define MAX_TOUCH_1D_OR_2D ((device_type_ == TWOD ? kMaxTouchNum2D : kMaxTouchNum1D))
-#define NUM_SENSORS ((device_type_ == ONED ? kNumSensorsBar : kNumSensors))
+#define MAX_TOUCH_1D_OR_2D (((device_type_ == SQUARE || device_type_ == HEX) ? kMaxTouchNum2D : kMaxTouchNum1D))
+#define NUM_SENSORS ((device_type_ == BAR ? kNumSensorsBar \
+			: device_type_ == HEX ? kNumSensorsHex \
+			: device_type_ == RING ? kNumSensorsRing \
+			: kNumSensors))
 Trill::Trill(){}
 
 Trill::Trill(int i2c_bus, int i2c_address, int mode) {
@@ -105,7 +108,7 @@ int Trill::identify() {
 	int bytesRead = ::read(i2C_file, dataBuffer, bytesToRead);
 	if (bytesRead != bytesToRead)
 	{
-		fprintf(stderr, "Failure to read Byte Stream\n");
+		fprintf(stderr, "Failure to read Byte Stream. Read %d bytes, expected %d\n", bytesRead, bytesToRead);
 		device_type_ = NONE;
 		return -1;
 	}
@@ -208,6 +211,21 @@ int Trill::setMinimumTouchSize(uint16_t size) {
 	return 0;
 }
 
+int Trill::setAutoScanInterval(uint16_t interval) {
+	unsigned int bytesToWrite = 4;
+	char buf[4] = { kOffsetCommand, kCommandAutoScanInterval, (char)(interval >> 8), (char)(interval & 0xFF) };
+	if(int writtenValue = (::write(i2C_file, buf, bytesToWrite)) != bytesToWrite)
+	{
+		fprintf(stderr, "Failed to set Trill's auto scan interval.\n");
+		fprintf(stderr, "%d\n", writtenValue);
+		return 1;
+	}
+	preparedForDataRead_ = false;
+	usleep(commandSleepTime); // need to give enough time to process command
+
+	return 0;
+}
+
 int Trill::updateBaseLine() {
 	unsigned int bytesToWrite = 2;
 	char buf[2] = { kOffsetCommand, kCommandBaselineUpdate };
@@ -246,7 +264,7 @@ int Trill::readI2C() {
 	int bytesRead = ::read(i2C_file, dataBuffer, kRawLength);
 	if (bytesRead != kRawLength)
 	{
-		fprintf(stderr, "Failure to read Byte Stream\n");
+		fprintf(stderr, "Failure to read Byte Stream. Read %d bytes, expected %d\n", bytesRead, bytesToRead);
 		return 1;
 	}
 	for (unsigned int i=0; i < NUM_SENSORS; i++) {
@@ -260,14 +278,16 @@ int Trill::readLocations() {
 	if(!preparedForDataRead_)
 		prepareForDataRead();
 
-	uint8_t bytesToRead = kNormalLengthDefault;
-	if(device_type_ == TWOD)
-		bytesToRead = kNormalLength2D;
-	int bytesRead = ::read(i2C_file, dataBuffer, kNormalLengthDefault);
-	if (bytesRead != kNormalLengthDefault)
+	uint8_t bytesToRead = kCentroidLengthDefault;
+	if(device_type_ == SQUARE || device_type_ == HEX)
+		bytesToRead = kCentroidLength2D;
+	if(device_type_ == RING)
+		bytesToRead = kCentroidLengthRing;
+	int bytesRead = ::read(i2C_file, dataBuffer, bytesToRead);
+	if (bytesRead != bytesToRead)
 	{
 		num_touches_ = 0;
-		fprintf(stderr, "Failure to read Byte Stream\n");
+		fprintf(stderr, "Failure to read Byte Stream. Read %d bytes, expected %d\n", bytesRead, bytesToRead);
 		return 1;
 	}
 
@@ -280,14 +300,14 @@ int Trill::readLocations() {
 	}
 	num_touches_ = locations;
 
-	if(device_type_ == TWOD)
+	if(device_type_ == SQUARE || device_type_ == HEX)
 	{
 		// Look for the number of horizontal touches in 2D sliders
 		// which might be different from number of vertical touches
-		for(locations = 0; locations < kMaxTouchNum2D; locations++)
+		for(locations = 0; locations < MAX_TOUCH_1D_OR_2D; locations++)
 		{
-			if(dataBuffer[2 * locations + 4 * kMaxTouchNum2D] == 0xFF
-				&& dataBuffer[2 * locations + 4 * kMaxTouchNum2D + 1] == 0xFF)
+			if(dataBuffer[2 * locations + 4 * MAX_TOUCH_1D_OR_2D] == 0xFF
+				&& dataBuffer[2 * locations + 4 * MAX_TOUCH_1D_OR_2D+ 1] == 0xFF)
 				break;
 		}
 		num_touches_ |= (locations << 4);
@@ -298,7 +318,7 @@ int Trill::readLocations() {
 
 int Trill::numberOfTouches()
 {
-	if(mode_ != NORMAL)
+	if(mode_ != CENTROID)
 		return 0;
 
 	// Lower 4 bits hold number of 1-axis or vertical touches
@@ -308,7 +328,7 @@ int Trill::numberOfTouches()
 // Number of horizontal touches for Trill 2D
 int Trill::numberOfHorizontalTouches()
 {
-	if(mode_ != NORMAL || device_type_ != TWOD)
+	if(mode_ != CENTROID  || (device_type_ != SQUARE && device_type_ != HEX))
 		return 0;
 
 	// Upper 4 bits hold number of horizontal touches
@@ -320,7 +340,7 @@ int Trill::numberOfHorizontalTouches()
 // Returns -1 if no such touch exists.
 int Trill::touchLocation(uint8_t touch_num)
 {
-	if(mode_ != NORMAL)
+	if(mode_ != CENTROID)
 		return -1;
 	if(touch_num >= MAX_TOUCH_1D_OR_2D)
 		return -1;
@@ -331,13 +351,26 @@ int Trill::touchLocation(uint8_t touch_num)
 	return location;
 }
 
+int Trill::readButtons(uint8_t button_num)
+{
+	if(mode_ != CENTROID)
+		return -1;
+	if(button_num > 1)
+		return -1;
+	if(device_type_ != RING)
+		return -1;
+
+	int buttonValue = ((dataBuffer[4*MAX_TOUCH_1D_OR_2D+2*button_num] << 8) + dataBuffer[4*MAX_TOUCH_1D_OR_2D+2*button_num+1]) & 0x0FFF;
+	return buttonValue;
+}
+
 
 // Size of a particular touch.
 // Range: 0 to N-1.
 // Returns -1 if no such touch exists.
 int Trill::touchSize(uint8_t touch_num)
 {
-	if(mode_ != NORMAL)
+	if(mode_ != CENTROID)
 		return -1;
 	if(touch_num >= MAX_TOUCH_1D_OR_2D)
 		return -1;
@@ -350,26 +383,26 @@ int Trill::touchSize(uint8_t touch_num)
 
 int Trill::touchHorizontalLocation(uint8_t touch_num)
 {
-	if(mode_ != NORMAL || device_type_ != TWOD)
+	if(mode_ != CENTROID  || (device_type_ != SQUARE && device_type_ != HEX))
 		return -1;
 	if(touch_num >= MAX_TOUCH_1D_OR_2D)
 		return -1;
 
-	int location = dataBuffer[2*touch_num + 4*kMaxTouchNum2D] * 256;
-	location += dataBuffer[2*touch_num + 4*kMaxTouchNum2D + 1];
+	int location = dataBuffer[2*touch_num + 4*MAX_TOUCH_1D_OR_2D] * 256;
+	location += dataBuffer[2*touch_num + 4*MAX_TOUCH_1D_OR_2D+ 1];
 
 	return location;
 }
 
 int Trill::touchHorizontalSize(uint8_t touch_num)
 {
-	if(mode_ != NORMAL || device_type_ != TWOD)
+	if(mode_ != CENTROID  || (device_type_ != SQUARE && device_type_ != HEX))
 		return -1;
 	if(touch_num >= MAX_TOUCH_1D_OR_2D)
 		return -1;
 
-	int size = dataBuffer[2*touch_num + 6*kMaxTouchNum2D] * 256;
-	size += dataBuffer[2*touch_num + 6*kMaxTouchNum2D + 1];
+	int size = dataBuffer[2*touch_num + 6*MAX_TOUCH_1D_OR_2D] * 256;
+	size += dataBuffer[2*touch_num + 6*MAX_TOUCH_1D_OR_2D+ 1];
 
 	return size;
 }

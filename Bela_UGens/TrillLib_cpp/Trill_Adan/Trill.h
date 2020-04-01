@@ -14,6 +14,7 @@ class Trill : public I2c
 			kCommandIdac = 5,
 			kCommandBaselineUpdate = 6,
 			kCommandMinimumSize = 7,
+			kCommandAutoScanInterval = 16,
 			kCommandIdentify = 255
 		};
 
@@ -23,8 +24,9 @@ class Trill : public I2c
 		};
 
 		enum {
-			kNormalLengthDefault = 20,
-			kNormalLength2D = 32,
+			kCentroidLengthDefault = 20,
+			kCentroidLengthRing = 24,
+			kCentroidLength2D = 32,
 			kRawLength = 60
 		};
 
@@ -35,6 +37,8 @@ class Trill : public I2c
 
 		enum {
 			kNumSensorsBar = 26,
+			kNumSensorsHex = 30,
+			kNumSensorsRing = 28,
 			kNumSensors = 30
 		};
 
@@ -51,7 +55,7 @@ class Trill : public I2c
 		int rawData[kNumSensors];
 
 		enum Modes {
-			NORMAL = 0,
+			CENTROID = 0,
 			RAW = 1,
 			BASELINE = 2,
 			DIFF = 3
@@ -59,14 +63,18 @@ class Trill : public I2c
 
 		enum Devices {
 			NONE = 0,
-			ONED = 1,
-			TWOD = 2
+			BAR = 1,
+			SQUARE = 2,
+			CRAFT = 3,
+			RING = 4,
+			HEX = 5,
+			FLEX = 6
 		};
 
 		Trill();
 		~Trill();
 		Trill(int i2c_bus, int i2c_address, int mode);
-		int setup(int i2c_bus = 1, int i2c_address = 0x18, int mode = NORMAL);
+		int setup(int i2c_bus = 1, int i2c_address = 0x18, int mode = CENTROID);
 		int setup(int i2c_bus, int i2c_address, int mode, int threshold, int prescaler);
 		void cleanup();
 
@@ -95,14 +103,17 @@ class Trill : public I2c
 		int setNoiseThreshold(uint8_t threshold);
 		int setIDACValue(uint8_t value);
 		int setMinimumTouchSize(uint16_t size);
+		int setAutoScanInterval(uint16_t interval);
 
 		/* --- Touch-related information --- */
 		int numberOfTouches();
 		int numberOfHorizontalTouches();
 		int touchLocation(uint8_t touch_num);
 		int touchSize(uint8_t touch_num);
-		/* Only for 2D sensors */
+		/* --- Only for 2D sensors --- */
 		int touchHorizontalLocation(uint8_t touch_num);
 		int touchHorizontalSize(uint8_t touch_num);
+		/* --- Only for Ring sensors --- */
+		int readButtons(uint8_t button_num);
 
 };
