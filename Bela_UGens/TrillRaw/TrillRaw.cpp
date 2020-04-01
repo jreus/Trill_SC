@@ -38,6 +38,7 @@ struct TrillRaw : public Unit {
   int mode;
   int noiseThreshold;
   int prescalerOpt;
+  int deviceType;
 
   AuxiliaryTask i2cTask;
   unsigned int readInterval; // read interval in ms
@@ -152,9 +153,11 @@ void TrillRaw_Ctor(TrillRaw* unit) {
     printf("Initialized with outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %d  thresh: %d  pre: %d  devtype: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, unit->mode, unit->noiseThreshold, gPrescalerOpts[unit->prescalerOpt], unit->sensor->deviceType());
   }
 
-  if(unit->sensor->deviceType() != Trill::ONED) {
-  	 fprintf(stderr, "WARNING! Trill Device Type is %d... ignoring... \n", unit->sensor->deviceType());
-   }
+  unit->deviceType = unit->sensor->deviceType();
+  if(unit->deviceType != Trill::BAR && unit->deviceType != Trill::CRAFT
+    && unit->deviceType != Trill::RING && unit->deviceType != Trill::FLEX) {
+    fprintf(stderr, "WARNING! You are using a sensor of device type %d that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n", unit->sensor->deviceType());
+  }
 
    numTrillUGens++;
    if(numTrillUGens != 1) {
