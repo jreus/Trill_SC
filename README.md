@@ -34,3 +34,62 @@ bela> ln -s ~/Trill_SC/ext/ /usr/local/share/SuperCollider/Extensions/TrillUGens
 ```
 bela> ln -s ~/Trill_SC/BelaProjects/* ~/Bela/projects/
 ```
+
+# Troubleshooting
+
+## Trill Not Detected
+
+Errors like these:
+```
+Unexpected or no response.
+No valid device connected.
+1
+Unable to identify device
+```
+
+and
+
+```
+Failed to prepare Trill data collection
+Failure to read Byte Stream
+```
+
+Check your I2C devices on the Bela:
+
+```
+root@bela:~# i2cdetect -r 1
+WARNING! This program can confuse your I2C bus, cause data loss and worse!
+I will probe file /dev/i2c-1 using read byte commands.
+I will probe address range 0x03-0x77.
+Continue? [Y/n] y
+     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+00:          -- -- -- -- -- -- -- -- -- -- -- -- --
+10: -- -- -- -- -- -- -- -- 18 -- -- -- -- -- -- --
+20: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+40: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+60: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+70: -- -- -- -- -- -- -- --        
+```
+
+This indicates an I2C device on address 0x18
+
+```
+root@bela:~# i2cdetect -r 1
+WARNING! This program can confuse your I2C bus, cause data loss and worse!
+I will probe file /dev/i2c-1 using read byte commands.
+I will probe address range 0x03-0x77.
+Continue? [Y/n] Y
+     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+00:          -- -- -- -- -- -- -- -- -- -- -- -- --
+10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+20: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+30: -- -- -- -- -- -- -- -- 38 -- -- -- -- -- -- --
+40: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+60: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+70: -- -- -- -- -- -- -- --                         
+```
+
+This indicates an I2C device on address 0x38
