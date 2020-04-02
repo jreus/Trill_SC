@@ -27,7 +27,8 @@ s.options.numOutputBusChannels = 2;
 s.waitForBoot {
 	SynthDef(\sketch, {|t_recalibrate=0.0|
 		var i2c_bus = 1;
-		var i2c_address = 0x18;
+		//var i2c_address = 0x18;
+		var i2c_address = 0x38;
 		var noiseThreshold = 30; // int: 5-255 with 255 being the highest noise thresh
 		var prescalerOpt = 1; // int: 0-4 with 0 being the highest sensitivity
 		var touchsigs = DC.ar(0).dup(3); // use 3 touches

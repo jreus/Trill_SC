@@ -3,6 +3,9 @@
 #include <libraries/Gui/Gui.h>
 #include <libraries/Trill/Trill.h>
 
+//#define I2C_ADDR 0x18
+#define I2C_ADDR 0x38
+
 Trill ts;
 
 AuxiliaryTask i2cReadTask;
@@ -31,7 +34,7 @@ bool setup(BelaContext *context, void *userData)
 	// try a different prescaler value for different capacitances (higher is good for longer cable runs)
 	// option 0 gives the highest sensitivity
 	int pre = 1; 
-	ts.setup(1, 0x18, Trill::DIFF, gNoiseThreshold, gPrescalerOpts[pre]);
+	ts.setup(1, I2C_ADDR, Trill::DIFF, gNoiseThreshold, gPrescalerOpts[pre]);
 	i2cReadTask = Bela_createAuxiliaryTask(readTouch, 50, "I2C-read", NULL);
 	readIntervalSamples = context->audioSampleRate * (readInterval/1000.f);
 	return true;

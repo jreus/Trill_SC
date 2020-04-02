@@ -130,7 +130,7 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   // Get initial arguments to UGen for I2C setup
   unit->i2c_bus = (int)IN0(0);
   unit->i2c_address = (int)IN0(1);
-  unit->mode = Trill::NORMAL; // tell sensor to calculate touch centroids
+  unit->mode = Trill::CENTROID; // tell sensor to calculate touch centroids
   unit->noiseThreshold = (int)IN0(2);
   unit->prescalerOpt = (int)IN0(3);
 
