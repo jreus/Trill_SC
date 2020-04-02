@@ -12,38 +12,39 @@ s.startAliveThread;
 s.plotTree;
 s.freeAll;
 
-// Trill Raw patch
+
+// Trill Raw Test
 (
 Ndef(\trill, {
   var i2c_bus = 1; // I2C bus to use on BeagleBone, usually you want this to be 1
-  var i2c_address = 0x18; // I2C address of Trill sensor
-  var thresh = 80; // noise threshold, int: 5-255
-  var prescaler = 1; // sensitvity, int: 0-5 (0=highest sensitivity)
-  var rawvals;
-  var sig;
-
+  var i2c_address = 0x38; // I2C address of Trill Sensor
+  var thresh = 40; // noise threshold, int: 5-255
+  var prescaler = 0; // sensitvity, int: 0-5 (0=highest sensitivity)
+  var rawvals, sig;
   rawvals = TrillRaw.kr(i2c_bus, i2c_address, thresh, prescaler);
-  SendReply.kr(Impulse.kr(0.5), "/trilldata", rawvals);
-
+  SendReply.kr(Impulse.kr(0.5), "/trillrawdata", rawvals);
   sig = SinOsc.ar((1..26) * 60, mul: Lag.kr(rawvals.linlin(200, 3000, 0.0, 1.0), 0.1)) * 1.0;
   sig = Splay.ar(sig);
   sig = CombL.ar(sig, 0.2, 0.2, 5.0) + sig;
-  sig;
-}).play(out: 0, numChannels: 2, group: s);
-
-OSCdef(\trilldata, {|msg| msg[3..].postln}, "/trilldata");
+  Out.ar(0, sig);
+}).play(group: s);
 );
+
+OSCdef(\trillrawdata, {|msg| msg[3..].postln}, "/trillrawdata");
+
+Ndef(\trill).clear;
+OSCdef(\trillrawdata).clear;
 
 // Trill Centroid patch
 (
 Ndef(\trill, {
   var i2c_bus = 1;
-  var i2c_address = 0x18;
+  var i2c_address = 0x38;
   var thresh = 60;
-  var prescaler = 1;
+  var prescaler = 0;
   var touchsigs = DC.ar(0).dup(3);
   var centroids;
-  var mix, out;
+  var mix;
 
   centroids = TrillCentroids.kr(i2c_bus, i2c_address, thresh, prescaler);
 
@@ -54,13 +55,15 @@ Ndef(\trill, {
 			Pluck.ar(PinkNoise.ar, (centroids[6] < 10), 0.2, centroids[5].linexp(0.0, 1.0, 80, 1000).reciprocal, 3, 0.5, mul: 6.0),
 			centroids[5].linexp(0.0, 1.0, 800, 2400), 0.1, 4.0).tanh;
 
+  SendReply.kr(Impulse.kr(0.5), "/trillcentroiddata", centroids);
 
-  out = Splay.ar(touchsigs);
-  SendReply.kr(Impulse.kr(1.5), "/trilldata", centroids);
-  Limiter.ar(out);
-}).play(0, numChannels: 2, group: s);
-
-OSCdef(\trilldata, {|msg| msg.postln}, "/trilldata");
-
+  mix = Splay.ar(touchsigs);
+	Out.ar(0, Limiter.ar(mix));
+}).play(group: s);
 );
 
+
+OSCdef(\trillcentroiddata, {|msg| msg.postln}, "/trillcentroiddata");
+
+OSCdef(\trillcentroiddata).clear;
+Ndef(\trill).clear;

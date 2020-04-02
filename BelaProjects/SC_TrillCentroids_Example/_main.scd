@@ -53,7 +53,7 @@ s.waitForBoot {
 		
 		
 		out = Splay.ar(touchsigs);
-		SendReply.kr(Impulse.kr(1), "/trill", centroids);
+		SendReply.kr(Impulse.kr(2), "/trill", centroids);
 		ping = EnvGen.ar(Env.perc, t_recalibrate) * SinOsc.ar(440); // make a ping every time the baseline is reset
 		Out.ar(0, out + ping);
 	}).add;
