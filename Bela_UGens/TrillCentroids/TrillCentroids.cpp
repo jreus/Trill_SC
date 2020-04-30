@@ -13,8 +13,8 @@ http://doc.sccode.org/Reference/ServerPluginAPI.html
 #include "SC_PlugIn.h"
 #include <pthread.h>
 
-// maximum number of touch centroids
-#define NUM_TOUCH 5
+#define NUM_TOUCH 5 // maximum number of touch centroids
+#define MAX_LOCATION_INT 3712 // maximum location value returned by Trill.touchLocation()
 
 // InterfaceTable contains pointers to global functions in the host (scserver).
 static InterfaceTable *ft;
@@ -110,7 +110,7 @@ void updateTrill(void* data)
   unit->sensor->readLocations(); // read latest i2c data & calculate centroids
   // Remap locations so that they are expressed in a 0-1 range
 	for(int i = 0; i <  unit->sensor->numberOfTouches(); i++) {
-		unit->touchLocations[i] = map(unit->sensor->touchLocation(i), 0, 3200, 0.f, 1.f);
+		unit->touchLocations[i] = map(unit->sensor->touchLocation(i), 0, MAX_LOCATION_INT, 0.f, 1.f);
 		unit->touchSizes[i] = unit->sensor->touchSize(i);
 	 }
 	 unit->numActiveTouches = unit->sensor->numberOfTouches();
