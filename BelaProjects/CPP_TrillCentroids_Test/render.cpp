@@ -5,6 +5,7 @@
 #define NUM_TOUCH 5 // Maximum number of centroids detected by Trill sensor
 //#define I2C_ADDR 0x18 // I2C Addr of Trill
 #define I2C_ADDR 0x38 // I2C Addr of Trill
+#define MAX_LOCATION_INT 3712
 
 Trill ts;
 
@@ -20,6 +21,7 @@ int gThresholdOpts[7] = {0, 10, 20, 30, 40, 50, 60};
 
 // CENTROID STATE VARIABLES
 float gTouchLocations[NUM_TOUCH] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
+//int gIntTouchLocations[NUM_TOUCH] = { 0, 0, 0, 0, 0 };
 float gTouchSizes[NUM_TOUCH] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
 int gNumActiveTouches = 0;
 
@@ -31,7 +33,8 @@ void readCentroids(void*)
 	
 	// Remap location and size so that they are expressed in a 0-1 range
 	for(int i = 0; i <  ts.numberOfTouches(); i++) {
-		gTouchLocations[i] = map(ts.touchLocation(i), 0, 3200, 0.f, 1.f);
+		//gIntTouchLocations[i] = ts.touchLocation(i);
+		gTouchLocations[i] = map(ts.touchLocation(i), 0, MAX_LOCATION_INT, 0.f, 1.f);
 		gTouchSizes[i] = ts.touchSize(i);
 	 }
 	 gNumActiveTouches = ts.numberOfTouches();
@@ -45,7 +48,8 @@ void readCentroids(void*)
 	// print feedback 
 	printf("#%d: ", gNumActiveTouches);
 	for(unsigned int i=0; i < NUM_TOUCH; i++) {
-		printf("(%1.5f,%4.f) ", gTouchLocations[i], gTouchSizes[i]);			
+		printf("(%1.5f,%4.f) ", gTouchLocations[i], gTouchSizes[i]);
+		//printf("(%1d,%4.f) ", gIntTouchLocations[i], gTouchSizes[i]);
 	}
 	printf("\n");
 	
