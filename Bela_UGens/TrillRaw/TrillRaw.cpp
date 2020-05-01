@@ -15,8 +15,7 @@ http://doc.sccode.org/Reference/ServerPluginAPI.html
 #include <pthread.h>
 
 // number of sensors per Trill device
-// TODO: update this once the 30-sensor Trill Sensors go into production
-#define NUM_SENSORS 26
+#define NUM_SENSORS 30
 
 // InterfaceTable contains pointers to global functions in the host (scserver).
 static InterfaceTable *ft;

@@ -34,10 +34,10 @@ TrillRaw : MultiOutUGen {
     ^this.multiNew('control', i2c_bus, i2c_address, noiseThreshold, prescalerOpt, t_resetBaseline);
   }
 
-  // 26 fixed outputs (TODO: should be increased to 30 for latest Trill sensors)
+  // 30 fixed outputs
   init { arg ... theInputs;
     inputs = theInputs;
-    ^this.initOutputs(26, rate);
+    ^this.initOutputs(30, rate);
   }
 
   // check that trigger is control rate
