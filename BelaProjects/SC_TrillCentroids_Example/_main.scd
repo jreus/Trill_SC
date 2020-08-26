@@ -28,9 +28,9 @@ s.waitForBoot {
 	SynthDef(\sketch, {|t_recalibrate=0.0|
 		var i2c_bus = 1;
 		//var i2c_address = 0x18;
-		var i2c_address = 0x38;
-		var noiseThreshold = 30; // int: 5-255 with 255 being the highest noise thresh
-		var prescalerOpt = 1; // int: 0-4 with 0 being the highest sensitivity
+		var i2c_address = 0x20;
+		var noiseThreshold = 0.02; // float: 0-0.0625, with 0.0625 being the highest noise thresh
+		var prescalerOpt = 1; // int: 1-8 with 1 being the highest sensitivity
 		var touchsigs = DC.ar(0).dup(3); // use 3 touches
 		var centroids;
 		var out, ping;
@@ -48,7 +48,7 @@ s.waitForBoot {
 
 		// touch3 another percussive plucky sound with pull-off behavior
 		touchsigs[2] = Resonz.ar(
-			Pluck.ar(PinkNoise.ar, (centroids[6] < 10), 0.2, centroids[5].linexp(0.0, 1.0, 80, 1000).reciprocal, 3, 0.5, mul: 6.0), 
+			Pluck.ar(PinkNoise.ar, (centroids[6] < 0.05), 0.2, centroids[5].linexp(0.0, 1.0, 80, 1000).reciprocal, 3, 0.5, mul: 6.0),
 			centroids[5].linexp(0.0, 1.0, 800, 2400), 0.1, 4.0).tanh;
 		
 		

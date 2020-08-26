@@ -18,20 +18,20 @@ for more details.
 
 /*
 Default values are chosen which are viable for most usage scenarios.
-By default noise threshold is high and sensitivity is high.
+By default noise threshold is low and sensitivity is high.
 
 i2c_bus           I2C bus to use on BeagleBone
 i2c_address       I2C address of Trill sensor
-noiseThreshold    noise threshold, int: 5-255, 255=highest noise threshold
-prescalerOpt      int: 0-4, lower values=higher sensitivity
+noiseThreshold    noise threshold, float: 0-0.0625, with 0.0625 being the highest noise thresh
+prescaler         int: 1-8, lower values=higher sensitivity
 t_resetBaseline   trigger: 0->1 transition recalculates capacitive baseline value
 */
 TrillRaw : MultiOutUGen {
-  *kr {arg i2c_bus=1, i2c_address=0x18, noiseThreshold=80, prescalerOpt=0, t_resetBaseline=0.0;
-    if(noiseThreshold.inclusivelyBetween(5,255).not) { Exception("Noise threshold '%' out of bounds. Must be an integer from 5 to 255.".format(noiseThreshold)).throw };
-    if(prescalerOpt.inclusivelyBetween(0,4).not) { Exception("Prescaler option % out of bounds. Must be an index from 0 to 4.".format(prescalerOpt)).throw };
+  *kr {arg i2c_bus=1, i2c_address=0x20, noiseThreshold=0, prescaler=2, t_resetBaseline=0.0;
+    if(noiseThreshold.inclusivelyBetween(0,1).not) { Exception("Noise threshold '%' out of bounds. Must be a float from 0 to 1.".format(noiseThreshold)).throw };
+    if(prescaler.inclusivelyBetween(1,8).not) { Exception("Prescaler % out of bounds. Must be an index from 1 to 8.".format(prescaler)).throw };
 
-    ^this.multiNew('control', i2c_bus, i2c_address, noiseThreshold, prescalerOpt, t_resetBaseline);
+    ^this.multiNew('control', i2c_bus, i2c_address, noiseThreshold, prescaler, t_resetBaseline);
   }
 
   // 30 fixed outputs
@@ -51,7 +51,7 @@ TrillRaw : MultiOutUGen {
 
 /*
 Default values are chosen which are viable for most usage scenarios.
-By default noise threshold is high and sensitivity is high.
+By default noise threshold is low and sensitivity is high.
 The outputs should be interpreted as the number of active touches, followed by location, size pairs for each touch centroid like so:
 
 [numActive, loc1, size1, loc2, size2, loc3, size3, loc4, size4, loc5, size5]
@@ -64,16 +64,16 @@ By default all 5 potential centroids are tracked (for a total of 10 kr outputs).
 
 i2c_bus          I2C bus to use on BeagleBone
 i2c_address      I2C address of Trill sensor
-noiseThreshold    noise threshold, int: 5-255, 255=highest noise threshold
-prescalerOpt      int: 0-4, lower values=higher sensitivity
+noiseThreshold    noise threshold, float: 0-0.0625, with 0.0625 being the highest noise thresh
+prescaler         int: 1-8, lower values=higher sensitivity
 t_resetBaseline   trigger: 0->1 transition recalculates capacitive baseline value
 */
 TrillCentroids : MultiOutUGen {
-  *kr {arg i2c_bus=1, i2c_address=0x18, noiseThreshold=80, prescalerOpt=0, t_resetBaseline=0.0;
-    if(noiseThreshold.inclusivelyBetween(5,255).not) { Exception("Noise threshold '%' out of bounds. Must be an integer from 5 to 255.".format(noiseThreshold)).throw };
-    if(prescalerOpt.inclusivelyBetween(0,4).not) { Exception("Prescaler option % out of bounds. Must be an index from 0 to 4.".format(prescalerOpt)).throw };
+  *kr {arg i2c_bus=1, i2c_address=0x20, noiseThreshold=0, prescaler=2, t_resetBaseline=0.0;
+    if(noiseThreshold.inclusivelyBetween(0,1).not) { Exception("Noise threshold '%' out of bounds. Must be an integer from 0 to 1.".format(noiseThreshold)).throw };
+    if(prescaler.inclusivelyBetween(1,8).not) { Exception("Prescaler % out of bounds. Must be an index from 1 to 8.".format(prescaler)).throw };
 
-    ^this.multiNew('control', i2c_bus, i2c_address, noiseThreshold, prescalerOpt, t_resetBaseline);
+    ^this.multiNew('control', i2c_bus, i2c_address, noiseThreshold, prescaler, t_resetBaseline);
   }
 
   init { arg ... theInputs;

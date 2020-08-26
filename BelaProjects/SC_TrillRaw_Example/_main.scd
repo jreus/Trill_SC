@@ -28,15 +28,15 @@ s.waitForBoot {
 	var numTouchPads = 26;
 	var i2c_bus = 1; // I2C bus to use on BeagleBone, usually you want this to be 1
 	//var i2c_address = 0x18; // I2C address of Trill sensor
-	var i2c_address = 0x38;
-	var noiseThresh = 40; // noise threshold, int: 5-255 (255=highest threshold)
-	var prescalerOpt = 1; // sensitivity option, int: 0-4 (0=highest sensitivity, play with this for complex Trill Craft setups)
+	var i2c_address = 0x30;
+	var noiseThresh = 0.01; // float: 0-0.0625, with 0.0625 being the highest noise thresh
+	var prescalerOpt = 1; // sensitivity option, int: 1-8 (1=highest sensitivity, play with this for complex Trill Craft setups)
 	var rawvals;
 	var sig, ping;
 
 	rawvals = TrillRaw.kr(i2c_bus, i2c_address, noiseThresh, prescalerOpt, t_updateTrill);
 	SendReply.kr(Impulse.kr(2), "/trill", rawvals);
-	sig = SinOsc.ar((1..numTouchPads) * 50, mul: Lag.kr(rawvals.linlin(0.0, 300, 0.0, 1.0), 0.1)) * 0.6;
+	sig = SinOsc.ar((1..numTouchPads) * 50, mul: Lag.kr(rawvals, 0.1)) * 0.6;
 	sig = Splay.ar(sig);
 	sig = CombL.ar(sig.sum, 0.2, 0.2, 3.0, mul: 0.4) + sig;
 	ping = EnvGen.ar(Env.perc, t_updateTrill) * SinOsc.ar(440);

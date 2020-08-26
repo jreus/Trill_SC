@@ -14,7 +14,6 @@ http://doc.sccode.org/Reference/ServerPluginAPI.html
 #include <pthread.h>
 
 #define NUM_TOUCH 5 // maximum number of touch centroids
-#define MAX_LOCATION_INT 3712 // maximum location value returned by Trill.touchLocation()
 
 // InterfaceTable contains pointers to global functions in the host (scserver).
 static InterfaceTable *ft;
@@ -35,10 +34,9 @@ struct TrillCentroids : public Unit {
   // and then allocated in the UGen constructor
   Trill* sensor;
   int i2c_bus, i2c_address;
-  int mode;
-  int noiseThreshold;
-  int prescalerOpt;
-  int deviceType;
+  Trill::Mode mode;
+  float noiseThreshold;
+  int prescaler;
 
   AuxiliaryTask i2cTask;
   unsigned int readInterval; // read interval in ms
@@ -48,7 +46,7 @@ struct TrillCentroids : public Unit {
   bool updateNeeded = false;
   bool updateNoiseThreshold = false;
   bool updatePrescalerOpt = false;
-  bool updateBaseLine = false;
+  bool updateBaseline = false;
 
   // trigger
   float prevtrig = 0.0;
@@ -62,16 +60,6 @@ struct TrillCentroids : public Unit {
   unsigned int debugCounter = 0;
   unsigned char debugPrintRate = 4; // 4 times per second
 };
-
-/*
-the "noise threshold" parameter is an integer from 5-255, where 5 is the lowest noise thresh
-the touch location of centroid mode is 0-3200, normalized to 0.0-1.0 in the readSensor function
-prescaler values can be 1-16 in powers of 2, although nobody is really sure what it does intuitively
-it seems to adjust the timing system and has something to do with the amount of capacitance
-that can be read by the circuit
-*/
-// Prescaler options for Trill sensor, can be a value from 1-16 in powers of 2
-int gPrescalerOpts[5] = {1, 2, 4, 8, 16};
 
 static void TrillCentroids_Ctor(TrillCentroids* unit); // constructor
 static void TrillCentroids_Dtor(TrillCentroids* unit); // destructor
@@ -90,30 +78,27 @@ void updateTrill(void* data)
     if(unit->updateNoiseThreshold && (unit->sensor->setNoiseThreshold(unit->noiseThreshold) != 0)) {
   		fprintf(stderr, "ERROR: Unable to set noise threshold on Trill Sensor!\n");
   	}
-  	if(unit->updatePrescalerOpt && (unit->sensor->setPrescaler(gPrescalerOpts[unit->prescalerOpt]) != 0)) {
+    if(unit->updatePrescalerOpt && (unit->sensor->setPrescaler(unit->prescaler) != 0)) {
   		fprintf(stderr, "ERROR: Unable to set prescaler on Trill Sensor!\n");
   	}
-    if(unit->updateBaseLine && (unit->sensor->updateBaseLine() != 0)) {
+    if(unit->updateBaseline && (unit->sensor->updateBaseline() != 0)) {
   		fprintf(stderr, "ERROR: Unable to update baseline on Trill Sensor!\n");
-  	}
-    if(unit->sensor->prepareForDataRead() != 0) {
-  		fprintf(stderr, "ERROR: Unable to prepare Trill Sensor for reading data\n");
   	}
     unit->updateNoiseThreshold = false;
     unit->updatePrescalerOpt = false;
-    unit->updateBaseLine = false;
+    unit->updateBaseline = false;
     unit->updateNeeded = false;
   }
 
 
   // 2. Update the sensor data
-  unit->sensor->readLocations(); // read latest i2c data & calculate centroids
+  unit->sensor->readI2C(); // read latest i2c data & calculate centroids
   // Remap locations so that they are expressed in a 0-1 range
-	for(int i = 0; i <  unit->sensor->numberOfTouches(); i++) {
-		unit->touchLocations[i] = map(unit->sensor->touchLocation(i), 0, MAX_LOCATION_INT, 0.f, 1.f);
+	for(int i = 0; i <  unit->sensor->getNumTouches(); i++) {
+		unit->touchLocations[i] = unit->sensor->touchLocation(i);
 		unit->touchSizes[i] = unit->sensor->touchSize(i);
 	 }
-	 unit->numActiveTouches = unit->sensor->numberOfTouches();
+	 unit->numActiveTouches = unit->sensor->getNumTouches();
 
 	 // For all inactive touches, set location and size to 0
 	 for(int i = unit->numActiveTouches; i <  NUM_TOUCH; i++) {
@@ -131,8 +116,8 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   unit->i2c_bus = (int)IN0(0);
   unit->i2c_address = (int)IN0(1);
   unit->mode = Trill::CENTROID; // tell sensor to calculate touch centroids
-  unit->noiseThreshold = (int)IN0(2);
-  unit->prescalerOpt = (int)IN0(3);
+  unit->noiseThreshold = (float)IN0(2);
+  unit->prescaler = (int)IN0(3);
 
 
   // zero control rate outputs
@@ -149,20 +134,21 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   printf("TrillCentroids CTOR id: %p\n", pthread_self());
 
   // initialize / setup the Trill sensor
-  if(unit->sensor->setup(unit->i2c_bus, unit->i2c_address, unit->mode, unit->noiseThreshold, gPrescalerOpts[unit->prescalerOpt]) != 0) {
+  if(unit->sensor->setup(unit->i2c_bus, Trill::UNKNOWN, unit->i2c_address) != 0) {
     fprintf(stderr, "ERROR: Unable to initialize touch sensor\n");
     return;
   } else {
+    unit->sensor->setMode(unit->mode);
+    unit->sensor->setNoiseThreshold(unit->noiseThreshold);
+    unit->sensor->setPrescaler(unit->prescaler);
     printf("Trill sensor found: devtype %d, firmware_v %d\n", unit->sensor->deviceType(), unit->sensor->firmwareVersion());
     printf("Also found %d active Trill UGens\n", numTrillUGens);
-    printf("Initialized with #outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %d  thresh: %d  pre: %d  deviceType: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, unit->mode, unit->noiseThreshold, gPrescalerOpts[unit->prescalerOpt], unit->sensor->deviceType());
+    printf("Initialized with #outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %d  thresh: %d  pre: %d  deviceType: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, unit->mode, unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
   }
 
 
-  unit->deviceType = unit->sensor->deviceType();
-  if(unit->deviceType != Trill::BAR && unit->deviceType != Trill::CRAFT
-    && unit->deviceType != Trill::RING && unit->deviceType != Trill::FLEX) {
-    fprintf(stderr, "WARNING! You are using a sensor of device type %d that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n", unit->sensor->deviceType());
+  if(!unit->sensor->is1D()) {
+    fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n", Trill::getNameFromDevice(unit->sensor->deviceType()));
   }
 
   numTrillUGens++;
@@ -173,13 +159,7 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   unit->i2cTask = Bela_createAuxiliaryTask(updateTrill, 50, "I2C-read", (void*)unit);
   unit->readIntervalSamples = SAMPLERATE * (unit->readInterval / 1000.f);
 
-  if(unit->sensor->isReady()) {
-    unit->sensor->readLocations();
-  } else {
-    fprintf(stderr, "Trill Sensor is not ready for I2C read.\n");
-    return;
-  }
-
+  unit->sensor->readI2C();
 
   SETCALC(TrillCentroids_next_k); // Use the same calc function no matter what the input rate is.
   TrillCentroids_next_k(unit, 1); // calc 1 sample of output so that downstream UGens don't access garbage memory
@@ -189,8 +169,6 @@ void TrillCentroids_Dtor(TrillCentroids* unit)
 {
   numTrillUGens--;
   printf("TrillCentroids DTOR id: %p // there are still %d active Trill UGens\n", pthread_self(), numTrillUGens);
-  if(numTrillUGens == 0)
-    unit->sensor->cleanup();
   delete unit->sensor; // make sure to use delete here and remove your allocations
 }
 
@@ -230,17 +208,17 @@ void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
   // CHECK FOR A NONPOSITIVE->POSITIVE TRIGGER TO RECALCULATE THE BASELINE AND PRESCALER/NOISE THRESH
   float curtrig = IN0(4);
   if (curtrig > 0.f && unit->prevtrig <= 0.f) {
-    int noiseThreshold = (int)IN0(2);
-    int prescalerOpt = (int)IN0(3);
+    float noiseThreshold = (float)IN0(2);
+    int prescaler = (int)IN0(3);
     if(noiseThreshold != unit->noiseThreshold) {
       unit->noiseThreshold = noiseThreshold;
       unit->updateNoiseThreshold = true;
     }
-    if(prescalerOpt != unit->prescalerOpt) {
-      unit->prescalerOpt = prescalerOpt;
+    if(prescaler != unit->prescaler) {
+      unit->prescaler = prescaler;
       unit->updatePrescalerOpt = true;
     }
-    unit->updateBaseLine = true;
+    unit->updateBaseline = true;
     unit->updateNeeded = true;
   }
   unit->prevtrig = curtrig;
