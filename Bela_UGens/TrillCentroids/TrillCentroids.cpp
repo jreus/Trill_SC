@@ -143,12 +143,12 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
     unit->sensor->setPrescaler(unit->prescaler);
     printf("Trill sensor found: devtype %d, firmware_v %d\n", unit->sensor->deviceType(), unit->sensor->firmwareVersion());
     printf("Also found %d active Trill UGens\n", numTrillUGens);
-    printf("Initialized with #outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %d  thresh: %d  pre: %d  deviceType: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, unit->mode, unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
+    printf("Initialized with #outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %s  thresh: %f  pre: %d  deviceType: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, Trill::getNameFromMode(unit->mode).c_str(), unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
   }
 
 
   if(!unit->sensor->is1D()) {
-    fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n", Trill::getNameFromDevice(unit->sensor->deviceType()));
+    fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n", Trill::getNameFromDevice(unit->sensor->deviceType()).c_str());
   }
 
   numTrillUGens++;
