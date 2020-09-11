@@ -52,10 +52,13 @@ struct TrillCentroids : public Unit {
   float prevtrig = 0.0;
 
   // CENTROID STATE VARIABLES
-  float touchLocations[NUM_TOUCH] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
-  float touchSizes[NUM_TOUCH] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
-  int numActiveTouches = 0;
-
+  float touchVerticalLocations[NUM_TOUCH] = { 0.0 };
+  float touchVerticalSizes[NUM_TOUCH] = { 0.0 };
+  float touchHorizontalLocations[NUM_TOUCH] = { 0.0 };
+  float touchHorizontalSizes[NUM_TOUCH] = { 0.0 };
+  int numVerticalTouches = 0;
+  int numHorizontalTouches = 0;
+                             
   // DEBUGGING bookkeeping
   unsigned int debugCounter = 0;
   unsigned char debugPrintRate = 4; // 4 times per second
@@ -93,18 +96,29 @@ void updateTrill(void* data)
 
   // 2. Update the sensor data
   unit->sensor->readI2C(); // read latest i2c data & calculate centroids
-  // Remap locations so that they are expressed in a 0-1 range
-	for(int i = 0; i <  unit->sensor->getNumTouches(); i++) {
-		unit->touchLocations[i] = unit->sensor->touchLocation(i);
-		unit->touchSizes[i] = unit->sensor->touchSize(i);
-	 }
-	 unit->numActiveTouches = unit->sensor->getNumTouches();
 
-	 // For all inactive touches, set location and size to 0
-	 for(int i = unit->numActiveTouches; i <  NUM_TOUCH; i++) {
-		unit->touchLocations[i] = 0.f;
-		unit->touchSizes[i] = 0.f;
-	 }
+  unit->numVerticalTouches = min(NUM_TOUCH, unit->sensor->getNumTouches());
+  unit->numHorizontalTouches = min(NUM_TOUCH, unit->sensor->getNumHorizontalTouches());
+  
+  // Remap locations so that they are expressed in a 0-1 range
+  for(int i = 0; i < unit->numVerticalTouches; i++) {
+    unit->touchVerticalLocations[i] = unit->sensor->touchLocation(i);
+    unit->touchVerticalSizes[i] = unit->sensor->touchSize(i);
+  }
+  for(int i = 0; i < unit->numHorizontalTouches; i++) {
+    unit->touchHorizontalLocations[i] = unit->sensor->touchHorizontalLocation(i);
+    unit->touchHorizontalSizes[i] = unit->sensor->touchHorizontalSize(i);
+  }
+           
+  // For all inactive touches, set location and size to 0
+  for(int i = unit->numVerticalTouches; i < NUM_TOUCH; i++) {
+    unit->touchVerticalLocations[i] = 0.f;
+    unit->touchVerticalSizes[i] = 0.f;
+  }
+  for(int i = unit->numHorizontalTouches; i < NUM_TOUCH; i++) {
+    unit->touchHorizontalLocations[i] = 0.f;
+    unit->touchHorizontalSizes[i] = 0.f;
+  }
 }
 
 
@@ -118,14 +132,6 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   unit->mode = Trill::CENTROID; // tell sensor to calculate touch centroids
   unit->noiseThreshold = (float)IN0(2);
   unit->prescaler = (int)IN0(3);
-
-
-  // zero control rate outputs
-  OUT0(0) = 0.f; // num active touches
-  for (int j = 0; j < NUM_TOUCH; j++) {
-    OUT0((j*2)+1) = 0.f;  // location i
-    OUT0((j*2)+2) = 0.f;  // size i
-  }
 
   unit->readInterval = 5; // (MAGIC NUMBER) sensor update/launch I2C aux task every 5ms
   unit->readIntervalSamples = 0; // launch I2C aux task every X samples
@@ -143,12 +149,24 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
     unit->sensor->setPrescaler(unit->prescaler);
     printf("Trill sensor found: devtype %d, firmware_v %d\n", unit->sensor->deviceType(), unit->sensor->firmwareVersion());
     printf("Also found %d active Trill UGens\n", numTrillUGens);
-    printf("Initialized with #outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %d  thresh: %d  pre: %d  deviceType: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, unit->mode, unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
+    printf("Initialized with #outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %s  thresh: %f  pre: %d  deviceType: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, Trill::getNameFromMode(unit->mode).c_str(), unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
   }
 
+  if(!(unit->sensor->is1D() || unit->sensor->is2D())) {
+    fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) or planar (2-dimensional) Trill sensor. The UGen may not function properly.\n", Trill::getNameFromDevice(unit->sensor->deviceType()).c_str());
+  }
 
-  if(!unit->sensor->is1D()) {
-    fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n", Trill::getNameFromDevice(unit->sensor->deviceType()));
+  // zero control rate outputs
+  int offset = 0;
+  OUT0(offset++) = 0.f; // num vertical touches
+  for(int i = 0; i < NUM_TOUCH; i++) {
+    OUT0(offset++) = 0.f;  // location i
+    OUT0(offset++) = 0.f;  // size i
+  }
+  OUT0(offset++) = 0.f; // num horizontal touches
+  for(int i = 0; i < NUM_TOUCH; i++) {
+    OUT0(offset++) = 0.f;  // location i
+    OUT0(offset++) = 0.f;  // size i
   }
 
   numTrillUGens++;
@@ -225,10 +243,16 @@ void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
 
 
   // update control rate outputs
-  OUT0(0) = unit->numActiveTouches;
+  int offset = 0;
+  OUT0(offset++) = unit->numVerticalTouches;
   for (unsigned int i = 0; i < NUM_TOUCH; i++) {
-    OUT0(i*2+1) = unit->touchLocations[i];
-    OUT0(i*2+2) = unit->touchSizes[i];
+    OUT0(offset++) = unit->touchVerticalLocations[i];
+    OUT0(offset++) = unit->touchVerticalSizes[i];
+  }
+  OUT0(offset++) = unit->numHorizontalTouches;
+  for (unsigned int i = 0; i < NUM_TOUCH; i++) {
+    OUT0(offset++) = unit->touchHorizontalLocations[i];
+    OUT0(offset++) = unit->touchHorizontalSizes[i];
   }
 }
 
