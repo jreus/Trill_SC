@@ -78,7 +78,7 @@ TrillCentroids : MultiOutUGen {
 
   init { arg ... theInputs;
     inputs = theInputs;
-    ^this.initOutputs(11, rate); // 11 outputs
+    ^this.initOutputs(22, rate); // 22 outputs
   }
 
   // check that trigger is control rate
