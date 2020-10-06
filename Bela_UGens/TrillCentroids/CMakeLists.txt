@@ -5,21 +5,14 @@
 # cmake -DSC_PATH=~/supercollider3.10b/ -DBELA_PATH=~/Bela/ ..
 # make && mv TrillCentroids.so ../../../ext/Trill/
 
-
 cmake_minimum_required (VERSION 2.8)
 
 set(FILENAME TrillCentroids.cpp)
-set(CMAKE_BUILD_TYPE Release)
-
-#automatically sets project name from the FILENAME variable
 get_filename_component(PROJECT ${FILENAME} NAME_WE)
 
-# alternatively set project name manually
-# set(PROJECT "my_name")
-
-# Give some console feedback
 message(STATUS "Project name is ${PROJECT}")
 project (${PROJECT}) # set the project name
+set(CMAKE_BUILD_TYPE Release) # this has to come after project()
 
 set(BELA_PATH /root/Bela/)
 
@@ -98,6 +91,14 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpmath=sse")
     endif()
 
+    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR STREQUAL "armv7l")
+      foreach(flag CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
+        set(${flag} "${${flag}} -mfloat-abi=hard")
+        set(${flag} "${${flag}} -mfpu=neon")
+        set(${flag} "${${flag}} -ftree-vectorize")
+        set(${flag} "${${flag}} -ffast-math")
+      endforeach()
+    endif()
     if(NATIVE)
         add_definitions(-march=native)
     endif()
@@ -113,9 +114,6 @@ if(MINGW)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mstackrealign")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mstackrealign")
 endif()
-
-
-
 
 # Build the shared library
 add_library(${PROJECT} MODULE
