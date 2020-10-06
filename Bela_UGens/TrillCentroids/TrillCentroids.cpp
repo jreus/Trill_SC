@@ -43,22 +43,22 @@ struct TrillCentroids : public Unit {
   unsigned int readIntervalSamples;
   unsigned int readCount;
 
-  bool updateNeeded = false;
-  bool updateNoiseThreshold = false;
-  bool updatePrescalerOpt = false;
-  bool updateBaseline = false;
+  bool updateNeeded;
+  bool updateNoiseThreshold;
+  bool updatePrescalerOpt;
+  bool updateBaseline;
 
   // trigger
-  float prevtrig = 0.0;
+  float prevtrig;
 
   // CENTROID STATE VARIABLES
-  float touchLocations[NUM_TOUCH] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
-  float touchSizes[NUM_TOUCH] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
-  int numActiveTouches = 0;
+  float touchLocations[NUM_TOUCH];
+  float touchSizes[NUM_TOUCH];
+  int numActiveTouches;
 
   // DEBUGGING bookkeeping
-  unsigned int debugCounter = 0;
-  unsigned char debugPrintRate = 4; // 4 times per second
+  unsigned int debugCounter;
+  unsigned char debugPrintRate; // 4 times per second
 };
 
 static void TrillCentroids_Ctor(TrillCentroids* unit); // constructor
@@ -93,7 +93,6 @@ void updateTrill(void* data)
 
   // 2. Update the sensor data
   unit->sensor->readI2C(); // read latest i2c data & calculate centroids
-  // Remap locations so that they are expressed in a 0-1 range
 	for(int i = 0; i <  unit->sensor->getNumTouches(); i++) {
 		unit->touchLocations[i] = unit->sensor->touchLocation(i);
 		unit->touchSizes[i] = unit->sensor->touchSize(i);
@@ -107,9 +106,9 @@ void updateTrill(void* data)
 	 }
 }
 
-
-
 void TrillCentroids_Ctor(TrillCentroids* unit) {
+  // horrible hack to initialise everything to zero.
+  memset(&(unit->sensor), 0, sizeof(TrillCentroids) - sizeof(Unit));
   unit->sensor = new Trill();   // all objects must be allocated in the constructor
 
   // Get initial arguments to UGen for I2C setup
@@ -130,6 +129,7 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   unit->readInterval = 5; // (MAGIC NUMBER) sensor update/launch I2C aux task every 5ms
   unit->readIntervalSamples = 0; // launch I2C aux task every X samples
   unit->readCount = 0;
+  unit->debugPrintRate = 4; // 4 times per second
 
   printf("TrillCentroids CTOR id: %p\n", pthread_self());
 
@@ -143,7 +143,7 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
     unit->sensor->setPrescaler(unit->prescaler);
     printf("Trill sensor found: devtype %d, firmware_v %d\n", unit->sensor->deviceType(), unit->sensor->firmwareVersion());
     printf("Also found %d active Trill UGens\n", numTrillUGens);
-    printf("Initialized with #outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %d  thresh: %d  pre: %d  deviceType: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, unit->mode, unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
+    printf("Initialized with #outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %s  thresh: %.4f  pre: %d  devtype: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, Trill::getNameFromMode(unit->mode).c_str(), unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
   }
 
 
@@ -171,7 +171,6 @@ void TrillCentroids_Dtor(TrillCentroids* unit)
   printf("TrillCentroids DTOR id: %p // there are still %d active Trill UGens\n", pthread_self(), numTrillUGens);
   delete unit->sensor; // make sure to use delete here and remove your allocations
 }
-
 
 /*
 Called every control period (16 samples is typical on the Bela)

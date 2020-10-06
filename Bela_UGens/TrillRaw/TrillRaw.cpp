@@ -43,19 +43,19 @@ struct TrillRaw : public Unit {
   unsigned int readIntervalSamples;
   unsigned int readCount;
 
-  bool updateNeeded = false;
-  bool updateNoiseThreshold = false;
-  bool updatePrescalerOpt = false;
-  bool updateBaseline = false;
+  bool updateNeeded;
+  bool updateNoiseThreshold;
+  bool updatePrescalerOpt;
+  bool updateBaseline;
 
   // Readins for all the different pads on the Trill Craft
-  float sensorReading[NUM_SENSORS] = { 0.0 };
+  float sensorReading[NUM_SENSORS];
 
   // trigger
-  float prevtrig = 0.0;
+  float prevtrig;
   // DEBUGGING bookkeeping
-  unsigned int debugCounter = 0;
-  unsigned char debugPrintRate = 4; // 4 times per second
+  unsigned int debugCounter;
+  unsigned char debugPrintRate;
 };
 
 /*
@@ -109,8 +109,11 @@ void updateTrill(void* data) {
 
 void TrillRaw_Ctor(TrillRaw* unit) {
 
+  // horrible hack to initialise everything to zero.
+  memset(&(unit->sensor), 0, sizeof(TrillRaw) - sizeof(Unit));
   // all objects must be allocated in the constructor
   unit->sensor = new Trill();
+  unit->debugPrintRate = 4; // 4 times per second
 
   // Get initial arguments to UGen for I2C setup
   unit->i2c_bus = (int)IN0(0);
