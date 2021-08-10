@@ -143,6 +143,7 @@ void TrillRaw_Ctor(TrillRaw* unit) {
     unit->sensor->setMode(unit->mode);
     unit->sensor->setNoiseThreshold(unit->noiseThreshold);
     unit->sensor->setPrescaler(unit->prescaler);
+    unit->sensor->updateBaseline(); // this was not explicitly requested, but you are expected to want it at startup.
     printf("Trill sensor found: devtype %s, firmware_v %d\n", Trill::getNameFromDevice(unit->sensor->deviceType()).c_str(), unit->sensor->firmwareVersion());
     printf("Found %d active Trill UGens\n", numTrillUGens);
     printf("Initialized with outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %s  thresh: %.4f  pre: %d  devtype: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, Trill::getNameFromMode(unit->mode).c_str(), unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
