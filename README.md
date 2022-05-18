@@ -10,7 +10,7 @@ To install the Trill UGens you'll need to do a bit of work at the command line.
 
 1. First copy the Trill_SC repository over to your Bela using the provided update.sh script.
 ```
-your.pc> ./update push -n
+your.pc> ./update.sh push -n
 ```
 
 *You can alternatively use scp*
