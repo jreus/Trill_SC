@@ -7,12 +7,14 @@ set(FILENAME "${PROJECT}.cpp")
 set(CMAKE_BUILD_TYPE Release) # this has to come after project()
 set(CMAKE_CXX_FLAGS "-O3 ${CMAKE_CXX_FLAGS}")
 set(CMAKE_C_FLAGS "-O3 ${CMAKE_C_FLAGS}")
+if (NOT DEFINED SC_PATH)
+    set(SC_PATH "/usr/include/SuperCollider/")
+endif()
 
 set(BELA_PATH /root/Bela/)
 
 # Include all the search directories
-include_directories(${SC_PATH}/include/plugin_interface)
-include_directories(${SC_PATH}/include/common)
+include_directories(${SC_PATH}/plugin_interface)
 include_directories(${SC_PATH}/common)
 include_directories(${BELA_PATH})
 include_directories(${BELA_PATH}/include)
