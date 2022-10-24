@@ -5,6 +5,8 @@
 project(${PROJECT})
 set(FILENAME "${PROJECT}.cpp")
 set(CMAKE_BUILD_TYPE Release) # this has to come after project()
+set(CMAKE_CXX_FLAGS "-O3 ${CMAKE_CXX_FLAGS}")
+set(CMAKE_C_FLAGS "-O3 ${CMAKE_C_FLAGS}")
 
 set(BELA_PATH /root/Bela/)
 
