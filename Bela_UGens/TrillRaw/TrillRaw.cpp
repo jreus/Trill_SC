@@ -133,7 +133,7 @@ void TrillRaw_Ctor(TrillRaw* unit) {
   unit->readIntervalSamples = SAMPLERATE * (unit->readInterval / 1000.f);
 
 
-  printf("TrillRaw CTOR id: %p\n", pthread_self());
+  printf("TrillRaw CTOR id: %lu\n", pthread_self());
 
   // DEFAULT OPTS are defined in TrillUGens.sc
   if(unit->sensor->setup(unit->i2c_bus, Trill::UNKNOWN, unit->i2c_address) != 0) {
@@ -168,7 +168,7 @@ void TrillRaw_Ctor(TrillRaw* unit) {
 void TrillRaw_Dtor(TrillRaw* unit)
 {
   numTrillUGens--;
-  printf("TrillRaw DTOR id: %p // %d active ugens remain\n", pthread_self(), numTrillUGens);
+  printf("TrillRaw DTOR id: %lu // %d active ugens remain\n", pthread_self(), numTrillUGens);
   delete unit->sensor; // make sure to use delete here and remove your allocations
 }
 

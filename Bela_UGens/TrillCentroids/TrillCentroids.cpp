@@ -131,7 +131,7 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   unit->readCount = 0;
   unit->debugPrintRate = 4; // 4 times per second
 
-  printf("TrillCentroids CTOR id: %p\n", pthread_self());
+  printf("TrillCentroids CTOR id: %lu\n", pthread_self());
 
   // initialize / setup the Trill sensor
   if(unit->sensor->setup(unit->i2c_bus, Trill::UNKNOWN, unit->i2c_address) != 0) {
@@ -149,7 +149,7 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
 
 
   if(!unit->sensor->is1D()) {
-    fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n", Trill::getNameFromDevice(unit->sensor->deviceType()));
+    fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n", Trill::getNameFromDevice(unit->sensor->deviceType()).c_str());
   }
 
   numTrillUGens++;
@@ -169,7 +169,7 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
 void TrillCentroids_Dtor(TrillCentroids* unit)
 {
   numTrillUGens--;
-  printf("TrillCentroids DTOR id: %p // there are still %d active Trill UGens\n", pthread_self(), numTrillUGens);
+  printf("TrillCentroids DTOR id: %lu // there are still %d active Trill UGens\n", pthread_self(), numTrillUGens);
   delete unit->sensor; // make sure to use delete here and remove your allocations
 }
 
