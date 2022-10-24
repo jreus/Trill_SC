@@ -59,6 +59,7 @@ struct TrillCentroids : public Unit {
   // DEBUGGING bookkeeping
   unsigned int debugCounter;
   unsigned char debugPrintRate; // 4 times per second
+  bool enable;
 };
 
 static void TrillCentroids_Ctor(TrillCentroids* unit); // constructor
@@ -72,6 +73,8 @@ static void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples); // au
 void updateTrill(void* data)
 {
   TrillCentroids *unit = (TrillCentroids*)data;
+  if(!unit->enable)
+    return;
 
   // 1. First update any settings that have been flagged for updating...
   if(unit->updateNeeded) {
@@ -92,7 +95,12 @@ void updateTrill(void* data)
 
 
   // 2. Update the sensor data
-  unit->sensor->readI2C(); // read latest i2c data & calculate centroids
+  int ret = unit->sensor->readI2C(); // read latest i2c data & calculate centroids
+  if(ret) {
+    fprintf(stderr, "Error reading sensor: %d\n", ret);
+    unit->enable = false;
+  }
+
 	for(int i = 0; i <  unit->sensor->getNumTouches(); i++) {
 		unit->touchLocations[i] = unit->sensor->touchLocation(i);
 		unit->touchSizes[i] = unit->sensor->touchSize(i);
@@ -160,6 +168,7 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   unit->i2cTask = Bela_createAuxiliaryTask(updateTrill, 50, "I2C-read", (void*)unit);
   unit->readIntervalSamples = SAMPLERATE * (unit->readInterval / 1000.f);
 
+  unit->enable = true;
   unit->sensor->readI2C();
 
   SETCALC(TrillCentroids_next_k); // Use the same calc function no matter what the input rate is.
@@ -184,6 +193,15 @@ void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
   //      Put state variables in the unit struct instead!
   //static int readCount = 0; // NO!
 
+  if(!unit->enable)
+  {
+    OUT0(0) = -1;
+    for (unsigned int i = 0; i < NUM_TOUCH; i++) {
+      OUT0(i*2+1) = 0;
+      OUT0(i*2+2) = 0;
+    }
+    return;
+  }
   //*** DEBUGGING BOOKKEEPING, for printing throttled output from the audio loop ***/
   bool DEBUG = false;
   unit->debugCounter += inNumSamples;

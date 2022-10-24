@@ -56,6 +56,7 @@ struct TrillRaw : public Unit {
   // DEBUGGING bookkeeping
   unsigned int debugCounter;
   unsigned char debugPrintRate;
+  bool enable;
 };
 
 /*
@@ -79,6 +80,8 @@ static void TrillRaw_next_k(TrillRaw* unit, int inNumSamples); // audio callback
 // NO I2C reads or writes should happen in the audio thread!
 void updateTrill(void* data) {
   TrillRaw *unit = (TrillRaw*)data;
+  if(!unit->enable)
+    return;
 
   // 1. First update any settings that have been flagged for updating...
   if(unit->updateNeeded) {
@@ -99,7 +102,11 @@ void updateTrill(void* data) {
 
 
   // 2. Update the sensor data
-    unit->sensor->readI2C();
+    int ret = unit->sensor->readI2C();
+    if(ret){
+      fprintf(stderr, "Error reading sensor: %d\n", ret);
+      unit->enable = false;
+    }
     for(unsigned int i=0; i < NUM_SENSORS; i++) {
       unit->sensorReading[i] = unit->sensor->rawData[i];
     }
@@ -159,6 +166,7 @@ void TrillRaw_Ctor(TrillRaw* unit) {
      fprintf(stderr, "WARNING! There are now %d active Trill UGens! This may cause unpredictable behavior as only one I2C connection is allowed at a time!", numTrillUGens); // TODO: is it true??
    }
 
+  unit->enable = true;
   unit->sensor->readI2C();
 
   SETCALC(TrillRaw_next_k); // Use the same calc function no matter what the input rate is.
@@ -184,6 +192,12 @@ void TrillRaw_next_k(TrillRaw* unit, int inNumSamples) {
   //       Put them in the unit struct instead!
 
 
+  if(!unit->enable)
+  {
+    for (int j = 0; j < unit->mNumOutputs; j++)
+      OUT0(j) = 0.f;
+    return;
+  }
   //*** DEBUGGING BOOKKEEPING ***/
   bool DEBUG = false;
   unit->debugCounter += inNumSamples;
