@@ -27,10 +27,13 @@ s.options.numOutputBusChannels = 2;
 s.waitForBoot {
 	SynthDef(\sketch, {|t_recalibrate=0.0|
 		var i2c_bus = 1;
-		//var i2c_address = 0x18;
-		var i2c_address = 0x20;
+		var i2c_address = 0x20; // Default address of Trill BAR
 		var noiseThreshold = 0.02; // float: 0-0.0625, with 0.0625 being the highest noise thresh
-		var prescalerOpt = 1; // int: 1-8 with 1 being the highest sensitivity
+		var prescalerOpt = 2; // int: 1-8 with 1 being the highest sensitivity.
+		// 2 is the best option for BAR, RING;
+		// 1 is the best option for Hex, Square;
+		// 4 is the best option for Flex.
+
 		var touchsigs = DC.ar(0).dup(3); // use 3 touches
 		var centroids;
 		var out, ping;
