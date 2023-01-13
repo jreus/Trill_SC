@@ -120,8 +120,8 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
     printf("Initialized with #outputs: %d  i2c_bus: %d  i2c_addr: %d device: %s mode: %s  thresh: %.4f  pre: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, Trill::getNameFromDevice(unit->sensor->deviceType()).c_str(), Trill::getNameFromMode(unit->mode).c_str(), unit->noiseThreshold, unit->prescaler);
   }
 
-  if(!unit->sensor->is1D()) {
-    fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n", Trill::getNameFromDevice(unit->sensor->deviceType()).c_str());
+  if(!unit->sensor->is1D() && !unit->sensor->is2D()) {
+    fprintf(stderr, "WARNING! You are using a Trill device of type %s that is not a linear (1D) or planar (2D) Trill sensor. The UGen may not function properly.\n", Trill::getNameFromDevice(unit->sensor->deviceType()).c_str());
   }
 
   unit->enable = true;
@@ -158,6 +158,7 @@ void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
   {
     zeroOuts(unit);
     safeWrite(unit, 0, -1);
+    safeWrite(unit, NUM_TOUCH * 2 + 1, -1);
     return;
   }
   //*** DEBUGGING BOOKKEEPING, for printing throttled output from the audio loop ***/
@@ -188,6 +189,7 @@ void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
   unit->prevtrig = curtrig;
 
   // update control rate outputs
+  // write vertical touches
   unsigned int touches = min(NUM_TOUCH, unit->sensor->getNumTouches());
   unsigned int offset = 0;
   safeWrite(unit, offset++, touches);
@@ -197,6 +199,19 @@ void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
     if(i < touches) {
       location = unit->sensor->touchLocation(i);
       size = unit->sensor->touchSize(i);
+    }
+    safeWrite(unit, offset++, location);
+    safeWrite(unit, offset++, size);
+  }
+  // write horizontal touches
+  touches = min(NUM_TOUCH, unit->sensor->getNumHorizontalTouches());
+  safeWrite(unit, offset++, touches);
+  for(int i = 0; i < touches; i++) {
+    float location = 0;
+    float size = 0;
+    if(i < touches) {
+      location = unit->sensor->touchHorizontalLocation(i);
+      size = unit->sensor->touchHorizontalSize(i);
     }
     safeWrite(unit, offset++, location);
     safeWrite(unit, offset++, size);
