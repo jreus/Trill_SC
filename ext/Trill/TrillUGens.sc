@@ -70,7 +70,7 @@ t_resetBaseline   trigger: 0->1 transition recalculates capacitive baseline valu
 */
 TrillCentroids : MultiOutUGen {
   *kr {arg i2c_bus=1, i2c_address=0x20, noiseThreshold=0, prescaler=2, t_resetBaseline=0.0;
-    if(noiseThreshold.inclusivelyBetween(0,1).not) { Exception("Noise threshold '%' out of bounds. Must be an integer from 0 to 1.".format(noiseThreshold)).throw };
+    if(noiseThreshold.inclusivelyBetween(0,1).not) { Exception("Noise threshold '%' out of bounds. Must be a float from 0 to 1. BUG: only values smaller than 256.0/(2^numBits) can be used right now".format(noiseThreshold)).throw };
     if(prescaler.inclusivelyBetween(1,8).not) { Exception("Prescaler % out of bounds. Must be an index from 1 to 8.".format(prescaler)).throw };
 
     ^this.multiNew('control', i2c_bus, i2c_address, noiseThreshold, prescaler, t_resetBaseline);
