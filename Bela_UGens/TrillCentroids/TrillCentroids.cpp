@@ -11,21 +11,12 @@ http://doc.sccode.org/Reference/ServerPluginAPI.html
 #include <Bela.h>
 #include <Trill.h>
 #include "SC_PlugIn.h"
-#include <pthread.h>
+#include <thread>
 
 #define NUM_TOUCH 5 // maximum number of touch centroids
 
 // InterfaceTable contains pointers to global functions in the host (scserver).
 static InterfaceTable *ft;
-
-// Track the number of active Trill UGens
-// NOTE: this does not show up in TrillRaw? (check for I2C management)
-//  how to export static variables into the global context?
-static int numTrillUGens = 0;
-
-// These functions are provided by Xenomai
-int rt_printf(const char *format, ...);
-int rt_fprintf(FILE *stream, const char *format, ...);
 
 // Holds UGen state variables
 struct TrillCentroids : public Unit {
@@ -33,15 +24,14 @@ struct TrillCentroids : public Unit {
   // so all objects in the UGen struct must be pointers
   // and then allocated in the UGen constructor
   Trill* sensor;
+  std::thread* thread;
+  volatile int threadShouldStop;
   int i2c_bus, i2c_address;
   Trill::Mode mode;
   float noiseThreshold;
   int prescaler;
 
-  AuxiliaryTask i2cTask;
   unsigned int readInterval; // read interval in ms
-  unsigned int readIntervalSamples;
-  unsigned int readCount;
 
   bool updateNeeded;
   bool updateNoiseThreshold;
@@ -66,13 +56,14 @@ static void TrillCentroids_Ctor(TrillCentroids* unit); // constructor
 static void TrillCentroids_Dtor(TrillCentroids* unit); // destructor
 static void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples); // audio callback
 
-// I2C read/write function executed in an auxiliary task
+// I2C read/write function executed in a separate thread
 // all I2C communications are enapsulated into a single thread to avoid
 // colliding read/writes
 // NO I2C reads or writes should happen in the audio thread!
-void updateTrill(void* data)
+static void updateTrill(TrillCentroids* unit)
 {
-  TrillCentroids *unit = (TrillCentroids*)data;
+  while(!unit->threadShouldStop && !Bela_stopRequested())
+  {
   if(!unit->enable)
     return;
 
@@ -112,6 +103,8 @@ void updateTrill(void* data)
 		unit->touchLocations[i] = 0.f;
 		unit->touchSizes[i] = 0.f;
 	 }
+    usleep(unit->readInterval);
+  } // while
 }
 
 void TrillCentroids_Ctor(TrillCentroids* unit) {
@@ -135,11 +128,7 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   }
 
   unit->readInterval = 5; // (MAGIC NUMBER) sensor update/launch I2C aux task every 5ms
-  unit->readIntervalSamples = 0; // launch I2C aux task every X samples
-  unit->readCount = 0;
   unit->debugPrintRate = 4; // 4 times per second
-
-  printf("TrillCentroids CTOR id: %lu\n", pthread_self());
 
   // initialize / setup the Trill sensor
   if(unit->sensor->setup(unit->i2c_bus, Trill::UNKNOWN, unit->i2c_address) != 0) {
@@ -151,7 +140,6 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
     unit->sensor->setPrescaler(unit->prescaler);
     unit->sensor->updateBaseline(); // this was not explicitly requested, but you are expected to want it at startup.
     printf("Trill sensor found: devtype %d, firmware_v %d\n", unit->sensor->deviceType(), unit->sensor->firmwareVersion());
-    printf("Also found %d active Trill UGens\n", numTrillUGens);
     printf("Initialized with #outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %s  thresh: %.4f  pre: %d  devtype: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, Trill::getNameFromMode(unit->mode).c_str(), unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
   }
 
@@ -160,26 +148,24 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
     fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n", Trill::getNameFromDevice(unit->sensor->deviceType()).c_str());
   }
 
-  numTrillUGens++;
-  if(numTrillUGens != 1) {
-    fprintf(stderr, "WARNING! Found %d active Trill UGens when there should be a maximum of 1! The UGen may not function properly.\n", numTrillUGens);
-  }
-
-  unit->i2cTask = Bela_createAuxiliaryTask(updateTrill, 50, "I2C-read", (void*)unit);
-  unit->readIntervalSamples = SAMPLERATE * (unit->readInterval / 1000.f);
-
   unit->enable = true;
   unit->sensor->readI2C();
 
   SETCALC(TrillCentroids_next_k); // Use the same calc function no matter what the input rate is.
   TrillCentroids_next_k(unit, 1); // calc 1 sample of output so that downstream UGens don't access garbage memory
+  unit->threadShouldStop = 0;
+  unit->thread = new std::thread(updateTrill, unit);
 }
 
 void TrillCentroids_Dtor(TrillCentroids* unit)
 {
-  numTrillUGens--;
-  printf("TrillCentroids DTOR id: %lu // there are still %d active Trill UGens\n", pthread_self(), numTrillUGens);
-  delete unit->sensor; // make sure to use delete here and remove your allocations
+  if(unit->thread && unit->thread->joinable())
+  {
+    unit->threadShouldStop = 1;
+    unit->thread->join();
+  }
+  delete unit->thread;
+  delete unit->sensor;
 }
 
 /*
@@ -188,11 +174,6 @@ The calculation function can have any name, but this is conventional.
 the first argument must be named "unit" for the IN and OUT macros to work.
 */
 void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
-  // NOTE: In general it's not a good idea to use static variables inside
-  //        UGens as they might be shared between plug-in instances!
-  //      Put state variables in the unit struct instead!
-  //static int readCount = 0; // NO!
-
   if(!unit->enable)
   {
     OUT0(0) = -1;
@@ -210,18 +191,6 @@ void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
     DEBUG = true;
   }
   //*** END DEBUGGING ***/
-
-  // DO AUDIO RATE STUFF IN THIS LOOP
-  for(unsigned int n=0; n < inNumSamples; n++) {
-    // This kind of sample-precision is not possible using aux tasks.
-    //   But at least the samples are being counted reliably, so this way
-    //   the AUX task is "requested" to run at a regular rate.
-    unit->readCount += 1;
-    if(unit->readCount >= unit->readIntervalSamples) {
-      unit->readCount = 0;
-      Bela_scheduleAuxiliaryTask(unit->i2cTask); // run the i2c thread every so many samples
-    }
-  }
 
   // CHECK FOR A NONPOSITIVE->POSITIVE TRIGGER TO RECALCULATE THE BASELINE AND PRESCALER/NOISE THRESH
   float curtrig = IN0(4);
