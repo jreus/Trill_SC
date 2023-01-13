@@ -7,19 +7,26 @@ set(FILENAME "${PROJECT}.cpp")
 set(CMAKE_BUILD_TYPE Release) # this has to come after project()
 set(CMAKE_CXX_FLAGS "-O3 ${CMAKE_CXX_FLAGS}")
 set(CMAKE_C_FLAGS "-O3 ${CMAKE_C_FLAGS}")
-if (NOT DEFINED SC_PATH)
-    set(SC_PATH "/usr/include/SuperCollider/")
-endif()
 
 set(BELA_PATH /root/Bela/)
 
+if (SC_PATH AND SC_INCLUDE_PATH)
+    message(FATAL_ERROR "Cannot define both SC_PATH and SC_INCLUDE_PATH. Try -USC_INCLUDE_PATH or -USC_PATH to remove any lingering one from cache")
+endif (SC_PATH AND SC_INCLUDE_PATH)
+
+if (SC_PATH)
+    set(SC_INCLUDE_PATH ${SC_PATH}/include)
+    include_directories(${SC_PATH}/common)
+else (SC_PATH)
+    if (NOT SC_INCLUDE_PATH)
+        set(SC_INCLUDE_PATH /usr/include/SuperCollider) # a reasonable guess on Bela
+    endif (NOT SC_INCLUDE_PATH)
+endif (SC_PATH)
+
 # Include all the search directories
-include_directories(${SC_PATH}/plugin_interface)
-include_directories(${SC_PATH}/common)
-include_directories(${BELA_PATH})
+include_directories(${SC_INCLUDE_PATH}/plugin_interface)
+include_directories(${SC_INCLUDE_PATH}/common)
 include_directories(${BELA_PATH}/include)
-include_directories(${BELA_PATH}/lib)
-# include_directories(${BELA_PATH}/libraries)
 include_directories(${BELA_PATH}/libraries/Trill/)
 
 set(CMAKE_SHARED_MODULE_PREFIX "")

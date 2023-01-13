@@ -9,7 +9,7 @@ http://doc.sccode.org/Reference/ServerPluginAPI.html
 //  Add functionality to keep track of number of active Trill UGens and throw an error if there is more than one...
 
 #include <Bela.h>
-#include <libraries/Trill/Trill.h>
+#include <Trill.h>
 #include "SC_PlugIn.h"
 #include <pthread.h>
 
