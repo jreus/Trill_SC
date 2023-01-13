@@ -83,6 +83,7 @@ static void updateTrill(TrillCentroids* unit)
 }
 
 void TrillCentroids_Ctor(TrillCentroids* unit) {
+  SETCALC(TrillCentroids_next_k); // Use the same calc function no matter what the input rate is.
   // horrible hack to initialise everything to zero.
   memset(&(unit->sensor), 0, sizeof(TrillCentroids) - sizeof(Unit));
   unit->sensor = new Trill();   // all objects must be allocated in the constructor
@@ -124,7 +125,6 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   unit->enable = true;
   unit->sensor->readI2C();
 
-  SETCALC(TrillCentroids_next_k); // Use the same calc function no matter what the input rate is.
   TrillCentroids_next_k(unit, 1); // calc 1 sample of output so that downstream UGens don't access garbage memory
   unit->threadShouldStop = 0;
   unit->thread = new std::thread(updateTrill, unit);
