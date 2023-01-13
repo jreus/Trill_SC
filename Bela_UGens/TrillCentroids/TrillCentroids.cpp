@@ -36,11 +36,6 @@ struct TrillCentroids : public Unit {
   // trigger
   float prevtrig;
 
-  // CENTROID STATE VARIABLES
-  float touchLocations[NUM_TOUCH];
-  float touchSizes[NUM_TOUCH];
-  int numActiveTouches;
-
   // DEBUGGING bookkeeping
   unsigned int debugCounter;
   unsigned char debugPrintRate; // 4 times per second
@@ -82,18 +77,6 @@ static void updateTrill(TrillCentroids* unit)
     if(ret) {
       fprintf(stderr, "Error reading sensor: %d\n", ret);
       unit->enable = false;
-    }
-
-    for(int i = 0; i <  unit->sensor->getNumTouches(); i++) {
-      unit->touchLocations[i] = unit->sensor->touchLocation(i);
-      unit->touchSizes[i] = unit->sensor->touchSize(i);
-    }
-    unit->numActiveTouches = unit->sensor->getNumTouches();
-
-    // For all inactive touches, set location and size to 0
-    for(int i = unit->numActiveTouches; i <  NUM_TOUCH; i++) {
-      unit->touchLocations[i] = 0.f;
-      unit->touchSizes[i] = 0.f;
     }
     usleep(unit->readInterval);
   } // while
@@ -200,12 +183,12 @@ void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
   }
   unit->prevtrig = curtrig;
 
-
   // update control rate outputs
-  OUT0(0) = unit->numActiveTouches;
-  for (unsigned int i = 0; i < NUM_TOUCH; i++) {
-    OUT0(i*2+1) = unit->touchLocations[i];
-    OUT0(i*2+2) = unit->touchSizes[i];
+  unsigned int touches = min(NUM_TOUCH, unit->sensor->getNumTouches());
+  OUT0(0) = touches;
+  for (unsigned int i = 0; i < touches; i++) {
+    OUT0(i*2+1) = unit->sensor->touchLocation(i);
+    OUT0(i*2+2) = unit->sensor->touchSize(i);
   }
 }
 
