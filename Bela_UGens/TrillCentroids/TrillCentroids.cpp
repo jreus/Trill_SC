@@ -82,6 +82,13 @@ static void updateTrill(TrillCentroids* unit)
   } // while
 }
 
+static void zeroOuts(TrillCentroids* unit)
+{
+  // zero control rate outputs
+  for(unsigned int n = 0; n < unit->mNumOutputs; ++n)
+    OUT0(n) = 0;
+}
+
 void TrillCentroids_Ctor(TrillCentroids* unit) {
   SETCALC(TrillCentroids_next_k); // Use the same calc function no matter what the input rate is.
   // horrible hack to initialise everything to zero.
@@ -95,12 +102,7 @@ void TrillCentroids_Ctor(TrillCentroids* unit) {
   unit->noiseThreshold = (float)IN0(2);
   unit->prescaler = (int)IN0(3);
 
-  // zero control rate outputs
-  OUT0(0) = 0.f; // num active touches
-  for (int j = 0; j < NUM_TOUCH; j++) {
-    OUT0((j*2)+1) = 0.f;  // location i
-    OUT0((j*2)+2) = 0.f;  // size i
-  }
+  zeroOuts(unit);
 
   unit->readInterval = 5; // (MAGIC NUMBER) sensor update/launch I2C aux task every 5ms
   unit->debugPrintRate = 4; // 4 times per second
@@ -141,6 +143,11 @@ void TrillCentroids_Dtor(TrillCentroids* unit)
   delete unit->sensor;
 }
 
+static inline void safeWrite(TrillCentroids* unit, unsigned int idx, float value)
+{
+  if(idx < unit->mNumOutputs)
+    OUT0(idx) = value;
+}
 /*
 Called every control period (16 samples is typical on the Bela)
 The calculation function can have any name, but this is conventional.
@@ -149,11 +156,8 @@ the first argument must be named "unit" for the IN and OUT macros to work.
 void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
   if(!unit->enable)
   {
-    OUT0(0) = -1;
-    for (unsigned int i = 0; i < NUM_TOUCH; i++) {
-      OUT0(i*2+1) = 0;
-      OUT0(i*2+2) = 0;
-    }
+    zeroOuts(unit);
+    safeWrite(unit, 0, -1);
     return;
   }
   //*** DEBUGGING BOOKKEEPING, for printing throttled output from the audio loop ***/
@@ -185,10 +189,17 @@ void TrillCentroids_next_k(TrillCentroids* unit, int inNumSamples) {
 
   // update control rate outputs
   unsigned int touches = min(NUM_TOUCH, unit->sensor->getNumTouches());
-  OUT0(0) = touches;
-  for (unsigned int i = 0; i < touches; i++) {
-    OUT0(i*2+1) = unit->sensor->touchLocation(i);
-    OUT0(i*2+2) = unit->sensor->touchSize(i);
+  unsigned int offset = 0;
+  safeWrite(unit, offset++, touches);
+  for(unsigned int i = 0; i < NUM_TOUCH; i++) {
+    float location = 0;
+    float size = 0;
+    if(i < touches) {
+      location = unit->sensor->touchLocation(i);
+      size = unit->sensor->touchSize(i);
+    }
+    safeWrite(unit, offset++, location);
+    safeWrite(unit, offset++, size);
   }
 }
 
