@@ -156,11 +156,6 @@ void TrillRaw_Ctor(TrillRaw* unit) {
     printf("Initialized with outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %s  thresh: %.4f  pre: %d  devtype: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, Trill::getNameFromMode(unit->mode).c_str(), unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
   }
 
-  if(!unit->sensor->is1D()) {
-    fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n",
-                    Trill::getNameFromDevice(unit->sensor->deviceType()).c_str()); // TODO: is it relevant??
-  }
-
    numTrillUGens++;
    if(numTrillUGens != 1) {
      fprintf(stderr, "WARNING! There are now %d active Trill UGens! This may cause unpredictable behavior as only one I2C connection is allowed at a time!", numTrillUGens); // TODO: is it true??
