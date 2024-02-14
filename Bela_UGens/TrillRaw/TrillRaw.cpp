@@ -56,6 +56,7 @@ struct TrillRaw : public Unit {
   // DEBUGGING bookkeeping
   unsigned int debugCounter;
   unsigned char debugPrintRate;
+  bool enable;
 };
 
 /*
@@ -79,6 +80,8 @@ static void TrillRaw_next_k(TrillRaw* unit, int inNumSamples); // audio callback
 // NO I2C reads or writes should happen in the audio thread!
 void updateTrill(void* data) {
   TrillRaw *unit = (TrillRaw*)data;
+  if(!unit->enable)
+    return;
 
   // 1. First update any settings that have been flagged for updating...
   if(unit->updateNeeded) {
@@ -99,7 +102,11 @@ void updateTrill(void* data) {
 
 
   // 2. Update the sensor data
-    unit->sensor->readI2C();
+    int ret = unit->sensor->readI2C();
+    if(ret){
+      fprintf(stderr, "Error reading sensor: %d\n", ret);
+      unit->enable = false;
+    }
     for(unsigned int i=0; i < NUM_SENSORS; i++) {
       unit->sensorReading[i] = unit->sensor->rawData[i];
     }
@@ -133,7 +140,7 @@ void TrillRaw_Ctor(TrillRaw* unit) {
   unit->readIntervalSamples = SAMPLERATE * (unit->readInterval / 1000.f);
 
 
-  printf("TrillRaw CTOR id: %p\n", pthread_self());
+  printf("TrillRaw CTOR id: %lu\n", pthread_self());
 
   // DEFAULT OPTS are defined in TrillUGens.sc
   if(unit->sensor->setup(unit->i2c_bus, Trill::UNKNOWN, unit->i2c_address) != 0) {
@@ -143,14 +150,10 @@ void TrillRaw_Ctor(TrillRaw* unit) {
     unit->sensor->setMode(unit->mode);
     unit->sensor->setNoiseThreshold(unit->noiseThreshold);
     unit->sensor->setPrescaler(unit->prescaler);
+    unit->sensor->updateBaseline(); // this was not explicitly requested, but you are expected to want it at startup.
     printf("Trill sensor found: devtype %s, firmware_v %d\n", Trill::getNameFromDevice(unit->sensor->deviceType()).c_str(), unit->sensor->firmwareVersion());
     printf("Found %d active Trill UGens\n", numTrillUGens);
     printf("Initialized with outputs: %d  i2c_bus: %d  i2c_addr: %d  mode: %s  thresh: %.4f  pre: %d  devtype: %d\n", unit->mNumOutputs, unit->i2c_bus, unit->i2c_address, Trill::getNameFromMode(unit->mode).c_str(), unit->noiseThreshold, unit->prescaler, unit->sensor->deviceType());
-  }
-
-  if(!unit->sensor->is1D()) {
-    fprintf(stderr, "WARNING! You are using a sensor of device type %s that is not a linear (1-dimensional) Trill sensor. The UGen may not function properly.\n",
-                    Trill::getNameFromDevice(unit->sensor->deviceType()).c_str()); // TODO: is it relevant??
   }
 
    numTrillUGens++;
@@ -158,6 +161,7 @@ void TrillRaw_Ctor(TrillRaw* unit) {
      fprintf(stderr, "WARNING! There are now %d active Trill UGens! This may cause unpredictable behavior as only one I2C connection is allowed at a time!", numTrillUGens); // TODO: is it true??
    }
 
+  unit->enable = true;
   unit->sensor->readI2C();
 
   SETCALC(TrillRaw_next_k); // Use the same calc function no matter what the input rate is.
@@ -167,7 +171,7 @@ void TrillRaw_Ctor(TrillRaw* unit) {
 void TrillRaw_Dtor(TrillRaw* unit)
 {
   numTrillUGens--;
-  printf("TrillRaw DTOR id: %p // %d active ugens remain\n", pthread_self(), numTrillUGens);
+  printf("TrillRaw DTOR id: %lu // %d active ugens remain\n", pthread_self(), numTrillUGens);
   delete unit->sensor; // make sure to use delete here and remove your allocations
 }
 
@@ -183,6 +187,12 @@ void TrillRaw_next_k(TrillRaw* unit, int inNumSamples) {
   //       Put them in the unit struct instead!
 
 
+  if(!unit->enable)
+  {
+    for (int j = 0; j < unit->mNumOutputs; j++)
+      OUT0(j) = 0.f;
+    return;
+  }
   //*** DEBUGGING BOOKKEEPING ***/
   bool DEBUG = false;
   unit->debugCounter += inNumSamples;
