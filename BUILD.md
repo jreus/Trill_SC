@@ -47,12 +47,16 @@ add_library(${PROJECT} MODULE
 ```
 
 ## Configure CMAKE
-DSC_PATH needs to point to your SuperCollider source (I dropped my source into ~, the source should match whatever version of SC is on the Bela).
 
-DBELA_PATH needs to point to the main Bela directory (usually ~/Bela)
+If you are building against the installed SuperCollider version you can simply
+```
+> cmake ..
+```
+this assumes `SC_INCLUDE_PATH=/usr/include/SuperCollider` and `BELA_PATH=/root/Bela`. If these are different on your system, you can set them on the command line with `-D`.
+If you are building against a non-installed version of SuperCollider, you should set `SC_INCLUDE_PATH` to point to the source's include folder, instead. If you also need the stuff in `supercollider/common`, then you cannot build against an installed version and you need to set `SC_PATH` to the source folder of SuperCollider, e.g.:
 
 ```
-> cmake -DSC_PATH=~/supercollider3.10b/ -DBELA_PATH=~/Bela/ ..
+> cmake -DSC_PATH=~/supercollider3.10b/ ..
 ```
 
 ## Run the make command
@@ -68,7 +72,7 @@ DBELA_PATH needs to point to the main Bela directory (usually ~/Bela)
 
 ***remember to symlink this extensions directory to your SC Extensions***
 ```
-> ln -s ~/Trill_SC/ext/ /usr/local/share/SuperCollider/Extensions/TrillUGens
+> ln -s ~/Trill_SC/ext/ /usr/share/SuperCollider/Extensions/TrillUGens
 ```
 
 ## Debug... Repeat...

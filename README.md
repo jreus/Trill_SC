@@ -24,9 +24,9 @@ your.pc> ssh root@192.168.7.2
 ```
 
 3. Make a symbolic link inside the SuperCollider extensions directory to the UGen files.
-*nice to know: on Linux the extensions directory is `/usr/local/share/SuperCollider/Extensions`*
+*nice to know: on Linux the extensions directory is `~/.local/share/SuperCollider/Extensions`
 ```
-bela> ln -s ~/Trill_SC/ext/Trill /usr/local/share/SuperCollider/Extensions/TrillUGens
+bela> ln -s ~/Trill_SC/ext/Trill ~/.local/share/SuperCollider/Extensions
 ```
 
 4. ***(Not required)*** Make symbolic links to all the example projects.
