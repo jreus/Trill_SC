@@ -1,6 +1,8 @@
 # Trill_SC
 Trill UGens for SuperCollider on the Bela
 
+**NOTE** This repository is no longer actively maintained, for the latest updated Trill UGens repo visit https://github.com/giuliomoro/Trill_SC
+
 # Trill Project Links
 * https://blog.bela.io/2019/09/16/trill-touch-sensors-kickstarter-bela/
 * https://github.com/BelaPlatform/Trill
